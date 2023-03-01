@@ -9,8 +9,8 @@ import random
 import numpy as np
 from cv2 import cv2 as cv 
 
-
-heart_beat_time = 2
+master_addr = 'localhost:50051'
+this_server_ip = 'localhost'
 
 def get_rand():
     return random.randint(0, 55555)
@@ -89,14 +89,14 @@ async def join(ip, port, stub, wt):
     res = await stub.Join(master_pb2.JoinRequest(ip = ip,port = port, weight = wt))
     return res.id
 # 1. join to the cluster and send local ip and port to the master
-async def heartBeatTimer(ip, port, weight,master_addr):
+async def heartBeatTimer(ip, port, weight):
     # insecure_channel build a channel with master
     async with grpc.aio.insecure_channel(master_addr) as channel:
         stub = master_pb2_grpc.MasterStub(channel)
         # rpc, join to the cluster
         id = await join(ip, port, stub, weight) 
     while True:
-        await asyncio.sleep(heart_beat_time)
+        await asyncio.sleep(1)
         # heart message
         async with grpc.aio.insecure_channel(master_addr) as channel:
             stub = master_pb2_grpc.MasterStub(channel)
@@ -104,20 +104,20 @@ async def heartBeatTimer(ip, port, weight,master_addr):
 
 
 
-async def serve(port) -> None:
+async def serve() -> None:
     server = grpc.aio.server()
     stream_video_pb2_grpc.add_VideoStreamServicer_to_server(
                                     VideoStreamServicer(), server)
-    server.add_insecure_port('[::]:'+port)
+    server.add_insecure_port('[::]:50050')
     await server.start()
     await server.wait_for_termination()
 
 
 
-async def main(ip, port, weight,master_addr):
+async def main(ip, port, weight):
     await asyncio.gather(
-        heartBeatTimer(ip, port, weight,master_addr),
-        serve(port)
+        heartBeatTimer(ip, port, weight),
+        serve()
     )
 
 if __name__ == "__main__":
@@ -134,9 +134,6 @@ if __name__ == "__main__":
     # except KeyboardInterrupt:
     #     server.stop(0)
     # asyncio.get_event_loop().run_until_complete(serve())
-
-    # master_addr connect to master
-    master_addr = 'localhost:50051'
+    
     # server local ip and port
-    this_server_ip = 'localhost'
-    asyncio.run(main(this_server_ip, 50050, 2,master_addr))
+    asyncio.run(main(this_server_ip, 50050, 2))
