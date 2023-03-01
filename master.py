@@ -10,6 +10,7 @@ from node import Node
 import sys
 
 
+sched_type = 'FIFO'   # FIFO/FAIR
 
 
 def recordHeartBeat(q, file):
@@ -29,7 +30,12 @@ class Master():
         self.last_index = 0
         self.node_ids = []
         self.recodQ = Manager().Queue()
-        
+
+        self.free_nodes = set()
+        self.taskid_nodeid = {}
+
+        self.cur_tasks = []
+        self.next_task_id = 1
 
     def getQueue(self):
         return self.recodQ
@@ -45,6 +51,7 @@ class Master():
         self.nodes_weights[id] = weight
         self.nodes_vals[id] = weight
         self.node_ids.append(id)
+        self.free_nodes.add(id)
         return id, True
     def leave(self, id):
         if id not in self.nodes:
@@ -61,23 +68,31 @@ class Master():
         return True
 
     def scheduler(self, task_type, task_sz):
-        next_index = -1
-        wt = 0
-        for id in self.nodes_vals.keys():
-            if self.nodes_vals[id] > wt:
-                next_index = id
-                wt = self.nodes_vals[id]
-        if next_index == -1:
-            for id in self.nodes_vals.keys():
-                self.nodes_vals[id] = self.nodes_weights[id]
-            return self.scheduler(task_type, task_sz)
-        self.nodes_vals[next_index] -= 1
+        index = self.free_nodes.pop()
 
-        index = self.node_ids[next_index]
         ip = self.nodes[index].getIp()
         port = self.nodes[index].getPort()
         print(ip, port)
-        return ip, port
+        return ip, port,index
+
+    # def scheduler(self, task_type, task_sz):
+    #     next_index = -1
+    #     wt = 0
+    #     for id in self.nodes_vals.keys():
+    #         if self.nodes_vals[id] > wt:
+    #             next_index = id
+    #             wt = self.nodes_vals[id]
+    #     if next_index == -1:
+    #         for id in self.nodes_vals.keys():
+    #             self.nodes_vals[id] = self.nodes_weights[id]
+    #         return self.scheduler(task_type, task_sz)
+    #     self.nodes_vals[next_index] -= 1
+    #
+    #     index = self.node_ids[next_index]
+    #     ip = self.nodes[index].getIp()
+    #     port = self.nodes[index].getPort()
+    #     print(ip, port)
+    #     return ip, port
         
     def getNodesNum(self):
         return len(self.nodes)
@@ -92,6 +107,7 @@ class MasterService(master_pb2_grpc.MasterServicer):
         print("new join ",ip, port)
         id, res = self.ms.join(ip, port, weight)
         print("join id is ", id)
+        print("available nodes num = ", len(self.ms.free_nodes))
         return master_pb2.JoinReply(id = id,success = res)
         
     def Leave(self, request, context):
@@ -119,24 +135,66 @@ class MasterService(master_pb2_grpc.MasterServicer):
         # print(id, request.io_perf, request.pro_perf)
         self.ms.updateInfo(id, info)
         return master_pb2.SateReply()  
-    
+
+    # make weight high node to front
+    def add_task_by_weight(self,task):
+        l = len(self.ms.cur_tasks)
+        t = 0
+        for i in range(l-1,-1,-1):
+            if(task[1]>self.ms.cur_tasks[i][1]):
+                t = i
+            else:
+                break
+        self.ms.cur_tasks.insert(t,task)
+        return
+
     # send target server info to client
     def RouteGuide(self, request, context):
-        if self.ms.getNodesNum() == 0:
-            return master_pb2.RouteReply(ip = "", port = 555, thread_num = 2)
-        print("nodes num = ", self.ms.getNodesNum())
-        task_type = request.task_type
-        task_sz = request.task_sz
-        print("cur task is", task_type, task_sz)
-        next_ip, next_port = self.ms.scheduler(task_type, task_sz)
-        print("schedle ", next_ip, next_port)
-        return master_pb2.RouteReply(ip = next_ip, port = next_port)
+        # if self.ms.getNodesNum() == 0:
+        #     return master_pb2.RouteReply(ip = "", port = 555, thread_num = 2)
+        # print("available nodes num = ", len(self.ms.free_nodes))
+        flag = request.task_id    # 0 request ,1 task finish
+
+        if flag == 1 :
+            task__id = request.task_type
+            node_id = self.ms.taskid_nodeid[task__id]
+            self.ms.free_nodes.add(node_id)
+            return master_pb2.RouteReply(ip="next_ip", port=0)
+        else:
+
+            task_type = request.task_type
+            task_sz = request.task_sz
+            task_id = self.ms.next_task_id
+            #todo task id and server node
+            self.ms.next_task_id += 1
+            print("cur task is task id = ", task_id,", weight = ", task_sz)
+            if (len(self.ms.free_nodes) > 0):
+                next_ip, next_port,nodeid = self.ms.scheduler(task_type, task_sz)
+                self.ms.taskid_nodeid[task_id] = nodeid
+            else:
+                if sched_type == 'FIFO':
+                    self.ms.cur_tasks.append([task_id,task_sz])
+                else:
+                    self.add_task_by_weight([task_id,task_sz])
+                print("Waiting : no available server ,add to the task queue...")
+                while True:
+                    if len(self.ms.free_nodes) > 0:
+                        if self.ms.cur_tasks[0][0] == task_id:
+                            self.ms.free_nodes -= 1
+                            self.ms.cur_tasks.pop(0)
+                            next_ip, next_port, nodeid = self.ms.scheduler(task_type, task_sz)
+                            self.ms.taskid_nodeid[task_id] = nodeid
+                            break
+                    time.sleep(2)   # wait for available nodes
+
+            print("task id = ", task_id,", weight = ", task_sz," schedle to", next_ip, next_port)
+            return master_pb2.RouteReply(ip = next_ip, port = task_id)
 
     def getQ(self):
         return self.ms.getQueue()
 
 if __name__ == "__main__":
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     service = MasterService()
     master_pb2_grpc.add_MasterServicer_to_server(service, server)
     #bind a port 
