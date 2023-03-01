@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+service VideoStream {
+    rpc SendFream(Fream) returns (Result) {}
+    rpc PushStream(stream Fream) returns (Result) {}
+    rpc PushAndPull(stream Fream) returns (stream Fream) {}
+    rpc FaceDetection(stream Frame) returns (Result) {}
+    rpc Canny(stream Frame) returns (Result) {}
+}
+
+message Fream {
+    int32 size = 1;
+    bytes fream = 2;
+}
+
+
+message Frame {
+    int32 size = 1;
+    bytes frame = 2;
+}
+
+message Result {
+
+}

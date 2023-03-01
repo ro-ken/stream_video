@@ -1,0 +1,7 @@
+numpy
+grpcio
+protobuf
+grpcio-tools
+opencv-python
+asyncio
+aiohttp

@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+service Master {
+    rpc Join(JoinRequest) returns (JoinReply) {}
+    rpc Leave(LeaveRequest) returns (LeaveReply) {}
+    rpc PushState(StateRequest) returns (SateReply) {}
+    rpc RouteGuide(RouteRequest) returns (RouteReply) {}
+    rpc SubmitResult(ResultInfo) returns (ResultInfo) {}
+}
+
+message JoinRequest {
+    string ip = 1;
+    int32 port = 2;
+    int32 weight = 3;
+}
+
+message JoinReply {
+    int32 id = 1;
+    bool success = 2;
+}
+
+message LeaveRequest {
+    int32 id = 1;
+}
+
+message LeaveReply {
+    bool success = 1;
+}
+
+message StateRequest {
+    int32 id = 1; 
+    float cpu_usage = 2;
+    int32 task_id = 3;
+    float io_perf = 4;
+    float pro_perf = 5;
+    int32 task_st = 6;
+    int32 task_ed = 7;
+    int64 utx = 8;
+}
+
+message SateReply {
+
+}
+
+message RouteRequest {
+    int32 task_id = 1;
+    int32 task_sz = 2;
+    int32 task_type = 3;
+}
+
+message RouteReply {
+    string ip = 1;
+    int32 port = 2;
+    int32 thread_num = 3;
+}
+
+message ResultInfo {
+    int32 id = 1;
+    int32 task_id = 2;
+    int32 time_cost = 3;
+    int32 performance = 4;
+}
