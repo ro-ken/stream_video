@@ -96,7 +96,7 @@ async def heartBeatTimer(ip, port, weight):
         # rpc, join to the cluster
         id = await join(ip, port, stub, weight) 
     while True:
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
         # heart message
         async with grpc.aio.insecure_channel(master_addr) as channel:
             stub = master_pb2_grpc.MasterStub(channel)

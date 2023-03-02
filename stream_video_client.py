@@ -13,7 +13,7 @@ import cv2 as cv
 import asyncio
 
 
-vedio_path = "test.mp4"
+vedio_path = "v01.mp4"
 
 def getTaskID():
     return random.randint(0,100)
@@ -77,8 +77,10 @@ async def main() -> None:
 
     async with grpc.aio.insecure_channel('localhost:50051') as channel:
         stub = master_pb2_grpc.MasterStub(channel)
-        await stub.RouteGuide(master_pb2.RouteRequest(task_id=1, task_sz=0, task_type=task_id))
+        ip, tt = await stub.RouteGuide(master_pb2.RouteRequest(task_id=1, task_sz=0, task_type=task_id))
+    print("task id=",task_id,"is finish,res=",ip)
     # told master task id finished
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())

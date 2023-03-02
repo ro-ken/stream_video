@@ -159,7 +159,8 @@ class MasterService(master_pb2_grpc.MasterServicer):
             task__id = request.task_type
             node_id = self.ms.taskid_nodeid[task__id]
             self.ms.free_nodes.add(node_id)
-            return master_pb2.RouteReply(ip="next_ip", port=0)
+            print("task=",task__id,"is finished,now free server nums =",self.ms.free_nodes)
+            return master_pb2.RouteReply(ip="true", port=0)
         else:
 
             task_type = request.task_type
