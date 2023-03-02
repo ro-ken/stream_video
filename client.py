@@ -16,7 +16,7 @@ import sys
 # get vedio name by command
 args = sys.argv
 
-if len(args) == 0:
+if len(args) == 1:
     vedio_path = "v01.mp4"
 else:
     vedio_path = args[1]+".mp4"
