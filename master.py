@@ -12,7 +12,6 @@ import sys
 
 sched_type = 'FIFO'   # FIFO/FAIR
 
-
 def recordHeartBeat(q, file):
     with open(file, 'w') as f:
         while True:

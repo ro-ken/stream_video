@@ -9,7 +9,7 @@ import random
 import numpy as np
 from cv2 import cv2 as cv 
 
-master_addr = 'localhost:50051'
+master_addr = '192.168.1.73:50051'
 this_server_ip = 'localhost'
 
 def get_rand():

@@ -16,10 +16,16 @@ import sys
 # get vedio name by command
 args = sys.argv
 
+task_weight = 1
+
 if len(args) == 1:
     vedio_path = "v01.mp4"
 else:
     vedio_path = args[1]+".mp4"
+    if len(args) == 3:
+        task_weight = int(args[3])
+
+master_addr = '192.168.1.73:50051'
 
 def getTaskID():
     return random.randint(0,100)
@@ -65,12 +71,12 @@ async def canny(stub_, count):
 async def find_server(stub):
     # task_sz is the weight of the task
     # task id  = 0 request server ; =1 finish the task
-    res = await stub.RouteGuide(master_pb2.RouteRequest(task_id = 0, task_sz = 10000, task_type = 50))
+    res = await stub.RouteGuide(master_pb2.RouteRequest(task_id = 0, task_sz = task_weight, task_type = 50))
     return res.ip, res.port
 
 async def main() -> None:
     #build a channel with master
-    async with grpc.aio.insecure_channel('localhost:50051') as channel:
+    async with grpc.aio.insecure_channel(master_addr) as channel:
         stub = master_pb2_grpc.MasterStub(channel)
         ip, task_id = await find_server(stub)
         # port is task id
@@ -81,7 +87,7 @@ async def main() -> None:
         # await push_stream(stub, 10000)
         await face_detection(stub, 100000)
 
-    async with grpc.aio.insecure_channel('localhost:50051') as channel:
+    async with grpc.aio.insecure_channel(master_addr) as channel:
         stub = master_pb2_grpc.MasterStub(channel)
         res = await stub.RouteGuide(master_pb2.RouteRequest(task_id=1, task_sz=0, task_type=task_id))
     print("task id=",res.ip,"is finish,res=",res.port)
