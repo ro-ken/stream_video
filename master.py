@@ -158,6 +158,7 @@ class MasterService(master_pb2_grpc.MasterServicer):
         if flag == 1 :
             task__id = request.task_type
             node_id = self.ms.taskid_nodeid[task__id]
+
             self.ms.free_nodes.add(node_id)
             print("task=",task__id,"is finished,now free server nums =",self.ms.free_nodes)
             return master_pb2.RouteReply(ip="true", port=0)
@@ -166,7 +167,7 @@ class MasterService(master_pb2_grpc.MasterServicer):
             task_type = request.task_type
             task_sz = request.task_sz
             task_id = self.ms.next_task_id
-            #todo task id and server node
+
             self.ms.next_task_id += 1
             print("cur task is task id = ", task_id,", weight = ", task_sz)
             if (len(self.ms.free_nodes) > 0):
@@ -181,9 +182,8 @@ class MasterService(master_pb2_grpc.MasterServicer):
                 while True:
                     if len(self.ms.free_nodes) > 0:
                         if self.ms.cur_tasks[0][0] == task_id:
-                            self.ms.free_nodes -= 1
-                            self.ms.cur_tasks.pop(0)
                             next_ip, next_port, nodeid = self.ms.scheduler(task_type, task_sz)
+                            self.ms.cur_tasks.pop(0)
                             self.ms.taskid_nodeid[task_id] = nodeid
                             break
                     time.sleep(2)   # wait for available nodes
